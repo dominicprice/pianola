@@ -12,7 +12,7 @@ analysers: dict[str, Callable[[str], Schema]] = {
 }
 
 
-def anaylse(uri: str) -> Schema:
+def analyse(uri: str) -> Schema:
     parsed_uri = urlparse(uri)
     analyser = analysers.get(parsed_uri.scheme)
     if analyser is None:
