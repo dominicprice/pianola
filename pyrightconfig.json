@@ -1,0 +1,7 @@
+{
+    "venvPath": "/home/dominic/.cache/pypoetry/virtualenvs",
+    "venv": "pianola-SbGHqQt1-py3.9",
+    "include": "src",
+    "pythonVersion": "3.9",
+    "verboseOutput": true
+}
