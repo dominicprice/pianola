@@ -1,7 +1,7 @@
-from typing import IO, Union
+from pathlib import Path
 
-import inflect
-import stringcase
+from pianola.lib.stringutils import sql_to_class_name, sql_to_module_name
+from pianola.lib.writer import Writer
 
 import whoosh.index as index
 from whoosh.fields import (
@@ -37,13 +37,13 @@ def field_type(field_obj: FieldType):
 
 
 class IndexGenerator:
-    def __init__(self, idx: index.FileIndex, f: IO[str]):
-        self.f = f
-        self.index = idx
+    def __init__(self, idx: index.FileIndex, outdir: Path):
+        self.idx = idx
+        self.outdir = outdir
         self.all_fields = []
         self.stored_fields = []
         self.unstored_fields = []
-        for name, obj in self.index.schema.items():
+        for name, obj in self.idx.schema.items():
             try:
                 python_type = field_type(obj)
             except ValueError as e:
@@ -56,146 +56,98 @@ class IndexGenerator:
             else:
                 self.unstored_fields += [field]
 
-        i = inflect.engine()
-        indexname = self.index.indexname
-        if s := i.singular_noun(indexname):
-            indexname = s
-        self.basename = stringcase.pascalcase(indexname)
+        self.basename = sql_to_class_name(self.idx.indexname)
 
-    def generate(self):
-        self.generate_imports()
-        types = self.generate_types()
-        entry = self.generate_entry()
-        result = self.generate_result()
-        return types + entry + result
+    def generate(self) -> list[str]:
+        module = sql_to_module_name(self.idx.indexname)
+        classes = []
+        with Writer(self.outdir / (module + ".py")) as w:
+            self.generate_imports(w)
+            classes += self.generate_query(w)
+            classes += self.generate_insert(w)
+        return classes
 
-    def generate_imports(self):
-        self.import_from("datetime", "datetime")
-        self.import_from("typing", "Any", "Optional", "Union")
-        self.import_from("whoosh.writing", "IndexWriter")
-        self.import_from("whoosh.searching", "Searcher")
-        self.import_from("whoosh.query", "Query")
-        self.import_from("dataclasses", "dataclass", "asdict")
+    def generate_imports(self, w: Writer):
+        w.writeline("from datetime import datetime")
+        w.writeline("from typing import Any, Generator, Optional")
+        w.writeline("from whoosh.writing import IndexWriter")
+        w.writeline("from whoosh.searching import Searcher")
+        w.writeline("from whoosh.query import Query")
+        w.writeline("from dataclasses import dataclass, asdict")
+        w.writeline()
 
-    def generate_types(self) -> list[str]:
-        self.f.write(
-            self.basename
-            + 'Type = Union["'
-            + self.basename
-            + 'Entry", "'
-            + self.basename
-            + 'Result"]\n'
-        )
-        return [self.basename + "Type"]
+    def generate_query(self, w: Writer) -> list[str]:
+        w.writeline("@dataclass")
+        w.writeline("class ", self.basename, ":")
+        with w.indented():
+            for field in self.unstored_fields:
+                w.writeline(field[0], ": Optional[", field[1], "] = None")
+            w.writeline()
 
-    def generate_entry(self) -> list[str]:
-        self.decorator("dataclass")
-        self.class_def(self.basename + "Entry")
-        for field in self.all_fields:
-            self.class_var(field[0], field[1], True)
+            w.writeline("def for_insert(self) -> '", self.basename, "ForInsert':")
+            with w.indented():
+                w.writeline("return ", self.basename, "ForInsert(**self.asdict())")
+            w.writeline()
 
-        self.class_method(
-            "insert",
-            ["w: IndexWriter"],
-            None,
-            "w.add_document(**self.asdict())",
-        )
+            w.writeline("@staticmethod")
+            w.writeline(
+                "def query(s: Searcher, query: Query, ",
+                "limit: Optional[int] = 10) -> Generator['",
+                self.basename,
+                "', None, None]:",
+            )
+            with w.indented():
+                w.writeline("for res in s.search(query, limit=limit):")
+                with w.indented():
+                    w.writeline("yield ", self.basename, "(**res)")
+            w.writeline()
 
-        self.class_method("asdict", [], ("dict", "str", "Any"), "return asdict(self)")
+            w.writeline("@staticmethod")
+            w.writeline(
+                "def query_one(s: Searcher, query: Query) -> Optional['",
+                self.basename,
+                "']:",
+            )
+            with w.indented():
+                w.writeline("results = s.search(query, limit=1)")
+                w.writeline("if len(results) == 0:")
+                with w.indented():
+                    w.writeline("return None")
+                w.writeline("return ", self.basename, "(**results[0])")
+            w.writeline()
 
-        return [self.basename + "Entry"]
+            w.writeline("@staticmethod")
+            w.writeline(
+                "def query_page(s: Searcher, query: Query, ",
+                "page: int, page_size: int = 10) -> Generator['",
+                self.basename,
+                "', None, None]:",
+            )
+            with w.indented():
+                w.writeline("for res in s.search_page(query, page, pagelen=page_size):")
+                with w.indented():
+                    w.writeline("yield ", self.basename, "(**res)")
+            w.writeline()
 
-    def generate_result(self) -> list[str]:
-        self.decorator("dataclass", "frozen=True")
-        self.class_def(self.basename + "Result")
-        for field in self.stored_fields:
-            self.class_var(field[0], field[1], True)
+            w.writeline("def asdict(self) -> dict[str, Any]:")
+            with w.indented():
+                w.writeline("return asdict(self)")
+        w.writeline()
 
-        self.class_static_method(
-            "query",
-            ["s: Searcher", "query: Query", "limit: Optional[int] = 10"],
-            ("list", self.basename + "Result"),
-            "results = s.search(query, limit=limit)",
-            f"return [{self.basename}Result(**res) for res in results]",
-        )
+        return [self.basename]
 
-        self.class_static_method(
-            "query_one",
-            ["s: Searcher", "query: Query"],
-            ("Optional", self.basename + "Result"),
-            "results = s.search(query, limit=1)",
-            "if len(results) == 0:",
-            "    return None",
-            f"return {self.basename}Result(**results[0])",
-        )
+    def generate_insert(self, w: Writer) -> list[str]:
+        w.writeline("@dataclass")
+        w.writeline("class " + self.basename, "ForInsert(", self.basename, "):")
+        with w.indented():
+            for field in self.stored_fields:
+                w.writeline(field[0], ": Optional[", field[1], "] = None")
+            w.writeline()
 
-        self.class_static_method(
-            "query_page",
-            ["s: Searcher", "query: Query", "page: int", "page_size: int = 10"],
-            ("list", self.basename + "Result"),
-            "results = s.search_page(query, page, pagelen=page_size)",
-            f"return [{self.basename}Result(**res) for res in results]",
-        )
+            w.writeline("def insert(self, w: IndexWriter) -> None:")
+            with w.indented():
+                w.writeline("w.add_document(**self.asdict())")
+            w.writeline()
+        w.writeline()
 
-        self.class_method(
-            "to_entry",
-            [],
-            self.basename + "Entry",
-            f"return {self.basename}Entry(**asdict(self))",
-        )
-
-        return [self.basename + "Result"]
-
-    def import_from(self, module: str, *exports: str):
-        self.f.write(f"from {module} import {', '.join(exports)}\n")
-
-    def class_var(self, name: str, typ: str, optional: bool):
-        if optional:
-            typ = "Optional[" + typ + "] = None"
-        self.f.write("    " + name + ": " + typ + "\n")
-
-    def class_def(self, name: str, *super_classes: str):
-        self.f.write(f"class {name}")
-        if super_classes:
-            self.f.write("(" + ", ".join(super_classes) + ")")
-        self.f.write(":\n")
-
-    def return_type(self, t: Union[str, tuple[str, ...], None]):
-        if isinstance(t, str):
-            self.f.write(" -> '" + t + "'")
-        elif isinstance(t, tuple):
-            type_origin, *type_args = t
-            self.f.write(" -> '" + type_origin + "[" + ", ".join(type_args) + "]'")
-
-    def class_static_method(
-        self,
-        name: str,
-        args: list[str],
-        return_type: Union[str, tuple[str, ...], None],
-        *body: str,
-    ):
-        self.f.write(f"    @staticmethod\n")
-        self.f.write(f"    def {name}(" + ", ".join(args) + ")")
-        self.return_type(return_type)
-        self.f.write(":")
-        self.f.writelines("\n        " + line for line in body)
-        self.f.write("\n\n")
-
-    def class_method(
-        self,
-        name: str,
-        args: list[str],
-        return_type: Union[str, tuple[str, ...], None],
-        *body: str,
-    ):
-        self.f.write(f"    def {name}(" + ", ".join(["self"] + args) + ")")
-        self.return_type(return_type)
-        self.f.write(":")
-        self.f.writelines("\n        " + line for line in body)
-        self.f.write("\n\n")
-
-    def decorator(self, name: str, *args: str):
-        self.f.write("@" + name)
-        if args:
-            self.f.write("(" + ", ".join(a for a in args) + ")")
-        self.f.write("\n")
+        return [self.basename + "ForInsert"]

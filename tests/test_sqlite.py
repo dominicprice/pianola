@@ -29,6 +29,7 @@ def db() -> Generator[str, None, None]:
 
 def test_analyser(db: str):
     schema = analyse(db)
+    assert schema.dialect == "sqlite"
     assert len(schema.tables) == 13
 
     table = schema.find_table("a_bit_of_everything", False)
@@ -48,9 +49,6 @@ def test_generator(db: str, tmp_path: Path):
     os.mkdir(models_dir)
 
     generate(schema, models_dir, "models")
-    os.makedirs("tmpmodels", exist_ok=True)
-    generate(schema, Path("tmpmodels"), "models")
-
     sys.path.append(str(tmp_path))
     models = __import__("models")
 

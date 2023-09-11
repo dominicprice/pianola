@@ -16,9 +16,8 @@ def generate(
         if idx.indexname in exclude:
             continue
 
-        with open(outdir / (idx.indexname + ".py"), "w") as f:
-            g = IndexGenerator(idx, f)
-            pkgs[idx.indexname] = g.generate()
+        g = IndexGenerator(idx, outdir)
+        pkgs[idx.indexname] = g.generate()
 
     with Writer(outdir / "__init__.py") as w:
         for pkg, classes in pkgs.items():
