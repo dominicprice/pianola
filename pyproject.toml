@@ -11,6 +11,7 @@ python = "^3.9"
 sqlglot = "^18.3.0"
 stringcase = "^1.2.0"
 inflect = "^7.0.0"
+whoosh = "^2.7.4"
 
 
 [tool.poetry.group.dev.dependencies]

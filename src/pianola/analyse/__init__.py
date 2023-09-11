@@ -2,11 +2,13 @@ from typing import Callable
 from urllib.parse import urlparse
 
 import pianola.analyse.sqlite as sqlite
+from pianola.analyse import whoosh
 from pianola.lib.schema import Schema
 
 analysers: dict[str, Callable[[str], Schema]] = {
     "sqlite": sqlite.analyse,
     "sqlite3": sqlite.analyse,
+    "whoosh": whoosh.analyse,
 }
 
 

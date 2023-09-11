@@ -2,10 +2,12 @@ from pathlib import Path
 from typing import Any, Callable
 
 import pianola.generate.sqlite as sqlite
+from pianola.generate import whoosh
 from pianola.lib.schema import Schema
 
 generators: dict[str, Callable[[Any, Path, str, list[str]], None]] = {
-    "sqlite": sqlite.generate
+    "sqlite": sqlite.generate,
+    "whoosh": whoosh.generate,
 }
 
 
