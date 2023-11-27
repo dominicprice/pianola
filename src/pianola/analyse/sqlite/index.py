@@ -25,5 +25,11 @@ def schema_populate_indices(schema: SqlSchema, cursor: sqlite3.Cursor):
     # rowid primary keys do not get an explicit index created
     for table in schema.tables:
         pks = [column for column in table.columns if column.primary_key]
-        if len(pks) == 1 and pks[0].sqltype in INTEGER_TYPES:
+        pk_index_exists = False
+        for index in table.indices:
+            if pks == index.columns:
+                pk_index_exists = True
+                break
+
+        if not pk_index_exists and len(pks) == 1 and pks[0].sqltype in INTEGER_TYPES:
             table.indices += [Index("pianola_implicit_rowid_index", pks)]

@@ -2,10 +2,10 @@ import sqlite3
 
 import sqlglot
 import sqlglot.expressions as exp
-import stringcase as sc
 from pianola.analyse.sqlite.column import column_from_expr
 from pianola.analyse.sqlite.utils import resolve_reference
 from pianola.lib.schema.sql import SqlSchema, Table
+from pianola.lib.stringutils import sql_to_class_name
 
 
 def schema_populate_table(schema: SqlSchema, table_schema: exp.Schema):
@@ -17,7 +17,7 @@ def schema_populate_table(schema: SqlSchema, table_schema: exp.Schema):
                 raise ValueError("table has no identifier")
             assert isinstance(ident.this, str)
             table.sqlname = ident.this
-            table.pyname = sc.pascalcase(ident.this)
+            table.pyname = sql_to_class_name(ident.this)
             table.quoted = ident.quoted
         elif isinstance(expr, exp.ColumnDef):
             column = column_from_expr(expr, schema)
@@ -49,7 +49,6 @@ def schema_populate_tables(schema: SqlSchema, cursor: sqlite3.Cursor):
     cursor.execute("SELECT name, sql FROM 'sqlite_master' where type='table'")
     rows = cursor.fetchall()
     for name, sql in rows:
-        print(name, sql)
         if name.startswith("sqlite_"):
             continue
         root = sqlglot.parse_one(sql, read="sqlite")

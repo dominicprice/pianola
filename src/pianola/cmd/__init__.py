@@ -33,6 +33,5 @@ def main(uri: str, outdir: Path, package: str, exclude: list[str]):
     be a scheme qualified database uri (e.g. sqlite://db.sqlite,
     whoosh://path/to/indices).
     """
-    print(uri)
     schema = analyse(uri)
     generate(schema, outdir, package, exclude)
