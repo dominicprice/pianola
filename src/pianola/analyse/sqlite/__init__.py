@@ -8,6 +8,7 @@ from pianola.lib.schema.sql import SqlSchema
 def analyse(filename: str) -> SqlSchema:
     schema = SqlSchema(dialect="sqlite", tables=[])
     with sqlite3.connect(filename) as conn:
+        print("connected")
         cursor = conn.cursor()
         schema_populate_tables(schema, cursor)
         schema_populate_indices(schema, cursor)

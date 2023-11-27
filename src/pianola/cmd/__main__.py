@@ -1,8 +1,7 @@
-from pianola.cmd import main, parse_args
+from pianola.cmd import main
 
 if __name__ == "__main__":
-    args = parse_args()
     try:
-        main(args)
+        main()
     except Exception as e:
         exit("error: " + str(e))

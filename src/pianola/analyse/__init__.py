@@ -18,4 +18,6 @@ def analyse(uri: str) -> Schema:
     if analyser is None:
         raise RuntimeError("unknown database scheme " + parsed_uri.scheme)
 
-    return analyser(parsed_uri.path)
+    print(parsed_uri.path)
+    print(parsed_uri)
+    return analyser(parsed_uri.netloc)

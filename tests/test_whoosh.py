@@ -37,7 +37,6 @@ def indices(tmp_path: Path) -> Generator[Path, None, None]:
         text_stored = TEXT(stored=True)
 
     index.create_in(tmp_path, ABitOfEverythingSchema, "a_bit_of_everything")
-    index.create_in(".", ABitOfEverythingSchema, "a_bit_of_everything")
     yield tmp_path
 
 
@@ -54,8 +53,6 @@ def test_generator(indices: Path, tmp_path: Path):
     os.mkdir(models_dir)
 
     generate(schema, models_dir, "models")
-    os.makedirs("tmpmodels", exist_ok=True)
-    generate(schema, Path("tmpmodels"), "models")
 
     sys.path.append(str(tmp_path))
     models = __import__("models")

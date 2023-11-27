@@ -14,6 +14,8 @@ def generate(
     package_name: str,
     exclude_tables: list[str] = [],
 ):
+    outdir.mkdir(exist_ok=True)
+
     # generate static files
     generate_converters(outdir)
     generate_utils(outdir)
@@ -21,6 +23,7 @@ def generate(
     # generate tables
     generated_tables: list[str] = []
     for table in schema.tables:
+        print(table)
         if table.sqlname not in exclude_tables:
             generate_table(table, outdir, package_name, [])
             generated_tables += [table.sqlname]

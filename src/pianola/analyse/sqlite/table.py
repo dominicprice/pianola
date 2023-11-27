@@ -49,6 +49,7 @@ def schema_populate_tables(schema: SqlSchema, cursor: sqlite3.Cursor):
     cursor.execute("SELECT name, sql FROM 'sqlite_master' where type='table'")
     rows = cursor.fetchall()
     for name, sql in rows:
+        print(name, sql)
         if name.startswith("sqlite_"):
             continue
         root = sqlglot.parse_one(sql, read="sqlite")
