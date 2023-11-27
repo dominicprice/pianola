@@ -1,11 +1,11 @@
 from typing import Callable
-from urllib.parse import urlparse
+from urllib.parse import ParseResult, urlparse
 
 import pianola.analyse.sqlite as sqlite
 from pianola.analyse import whoosh
 from pianola.lib.schema import Schema
 
-analysers: dict[str, Callable[[str], Schema]] = {
+analysers: dict[str, Callable[[ParseResult], Schema]] = {
     "sqlite": sqlite.analyse,
     "sqlite3": sqlite.analyse,
     "whoosh": whoosh.analyse,
@@ -18,6 +18,4 @@ def analyse(uri: str) -> Schema:
     if analyser is None:
         raise RuntimeError("unknown database scheme " + parsed_uri.scheme)
 
-    print(parsed_uri.path)
-    print(parsed_uri)
-    return analyser(parsed_uri.netloc)
+    return analyser(parsed_uri)
