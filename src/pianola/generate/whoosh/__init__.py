@@ -11,6 +11,8 @@ def generate(
     package_name: str,
     exclude: list[str] = [],
 ):
+    outdir.mkdir(exist_ok=True)
+
     pkgs: dict[str, list[str]] = {}
     for idx in schema.indices:
         if idx.indexname in exclude:
