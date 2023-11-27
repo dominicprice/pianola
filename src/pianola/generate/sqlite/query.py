@@ -63,7 +63,7 @@ def generate_query(w: Writer, target: Union[Table, View], query: Query):
         for i, col in enumerate(cols):
             f = next(c for c in target.columns if c.sqlname == col.sqlname)
             fields += [f.pyname + " = " + f.val_from_sql(f"res[{i}]")]
-        w.writeline("stmt = '''" + query.sql + "'''")
+        w.writeline("stmt = '''" + sql + "'''")
         w.writeline(
             "try_execute(cursor, stmt, [",
             ", ".join(p[0] for p in params),
