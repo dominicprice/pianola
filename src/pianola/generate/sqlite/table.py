@@ -241,7 +241,7 @@ class TableGenerator:
                 "stmt = 'UPDATE ",
                 self.table.sqlname,
                 " SET ",
-                "(' + ', '.join(cols) + ') VALUES (' + ', '.join('?' for _ in values) + ')",
+                "', '.join(c + ' = ?' for c in cols)",
                 " WHERE ",
                 " AND ".join(
                     f"{c.sqlname} = ?" for c in self.table.columns if c.primary_key
