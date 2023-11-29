@@ -221,6 +221,17 @@ class TableGenerator:
         w.writeline("def update(self, cursor: Cursor):")
         with w.indented():
             self.generate_set_cols(w, "cols", "values", False)
+            for column in self.table.columns:
+                if not column.primary_key:
+                    continue
+                w.writeline("if isinstance(self._", column.pyname, ", _UNSET):")
+                with w.indented():
+                    w.writeline(
+                        "raise ValueError('primary key ",
+                        column.pyname,
+                        " not set')",
+                    )
+                w.writeline("values += [self._", column.pyname, "]")
             w.writeline(
                 "cols += ["
                 + ", ".join(
