@@ -242,9 +242,9 @@ class TableGenerator:
                 self.table.sqlname,
                 " SET ",
                 "(' + ', '.join(cols) + ') VALUES (' + ', '.join('?' for _ in values) + ')",
-                " WHERE "
+                " WHERE ",
                 " AND ".join(
-                    f"c.sqlname = ?" for c in self.table.columns if c.primary_key
+                    f"{c.sqlname} = ?" for c in self.table.columns if c.primary_key
                 ),
                 "'",
             )
