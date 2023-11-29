@@ -80,6 +80,7 @@ class TableGenerator:
                 for field in self.table.columns:
                     self.generate_field_property(w, field)
                 self.generate_insert(w)
+                self.generate_update(w)
                 self.generate_delete(w)
                 for query in self.queries:
                     generate_query(w, self.table, query)
