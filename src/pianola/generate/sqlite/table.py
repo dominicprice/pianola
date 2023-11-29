@@ -232,13 +232,6 @@ class TableGenerator:
                         " not set')",
                     )
                 w.writeline("values += [self._", column.pyname, "]")
-            w.writeline(
-                "cols += ["
-                + ", ".join(
-                    "self._" + c.pyname for c in self.table.columns if c.primary_key
-                )
-                + "]"
-            )
 
             w.writeline()
             w.writeline("if not cols:")
