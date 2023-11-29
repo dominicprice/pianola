@@ -23,7 +23,6 @@ def generate(
     # generate tables
     generated_tables: list[str] = []
     for table in schema.tables:
-        print(table)
         if table.sqlname not in exclude_tables:
             generate_table(table, outdir, package_name, [])
             generated_tables += [table.sqlname]

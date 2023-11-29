@@ -153,11 +153,19 @@ class TableGenerator:
             w.writeline("self._", field.pyname, " = t")
         w.writeline()
 
-    def generate_set_cols(self, w: Writer, colsname: str, valsname: Optional[str]):
+    def generate_set_cols(
+        self,
+        w: Writer,
+        colsname: str,
+        valsname: Optional[str],
+        include_primary_keys: bool = True,
+    ):
         w.writeline(colsname, ": list[str] = []")
         if valsname:
             w.writeline(valsname, ": list[Any] = []")
         for field in self.table.columns:
+            if not include_primary_keys and field.primary_key:
+                continue
             w.writeline("if not isinstance(self._", field.pyname, ", _UNSET):")
             with w.indented():
                 w.writeline(colsname, " += ['", field.sqlname, "']")
@@ -206,6 +214,36 @@ class TableGenerator:
                     " = ",
                     column.val_from_sql(f"row[{i}]"),
                 )
+        w.writeline()
+
+    def generate_update(self, w: Writer):
+        w.writeline("def update(self, cursor: Cursor):")
+        with w.indented():
+            self.generate_set_cols(w, "cols", "values", False)
+            w.writeline(
+                "cols += ["
+                + ", ".join(
+                    "self._" + c.pyname for c in self.table.columns if c.primary_key
+                )
+                + "]"
+            )
+
+            w.writeline()
+            w.writeline("if not cols:")
+            with w.indented():
+                w.writeline("return")
+            w.writeline(
+                "stmt = 'UPDATE ",
+                self.table.sqlname,
+                " SET ",
+                "(' + ', '.join(cols) + ') VALUES (' + ', '.join('?' for _ in values) + ')",
+                " WHERE "
+                " AND ".join(
+                    f"c.sqlname = ?" for c in self.table.columns if c.primary_key
+                ),
+                "'",
+            )
+            w.writeline("try_execute(cursor, stmt, values)")
         w.writeline()
 
     def generate_delete(self, w: Writer):
