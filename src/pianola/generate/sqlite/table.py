@@ -59,7 +59,7 @@ class TableGenerator:
                     + self.table.sqlname
                     + " WHERE "
                     + where,
-                    True,
+                    index.unique,
                 ),
             ]
         queries += [
@@ -218,6 +218,10 @@ class TableGenerator:
         w.writeline()
 
     def generate_update(self, w: Writer):
+        # do not generate update if only primary keys
+        if all(c.primary_key for c in self.table.columns):
+            return
+
         w.writeline("def update(self, cursor: Cursor):")
         with w.indented():
             self.generate_set_cols(w, "cols", "values", False)
@@ -234,21 +238,47 @@ class TableGenerator:
                 w.writeline("values += [self._", column.pyname, "]")
 
             w.writeline()
-            w.writeline("if not cols:")
-            with w.indented():
-                w.writeline("return")
-            w.writeline(
-                "stmt = 'UPDATE ",
-                self.table.sqlname,
-                " SET ",
-                "', '.join(c + ' = ?' for c in cols)",
-                " WHERE ",
-                " AND ".join(
-                    f"{c.sqlname} = ?" for c in self.table.columns if c.primary_key
-                ),
-                "'",
+            w.writeline("if cols:")
+            where = " AND ".join(
+                f"{c.sqlname} = ?" for c in self.table.columns if c.primary_key
             )
+            with w.indented():
+                w.writeline(
+                    "stmt = 'UPDATE ",
+                    self.table.sqlname,
+                    " SET ' + ",
+                    "', '.join(c + ' = ?' for c in cols)",
+                    " + ' WHERE ",
+                    where,
+                    " RETURNING ",
+                    ", ".join(c.sqlname for c in self.table.columns),
+                    "'",
+                )
+            w.writeline("else:")
+            with w.indented():
+                w.writeline(
+                    'stmt = """SELECT ',
+                    ", ".join(c.sqlname for c in self.table.columns),
+                    " FROM ",
+                    self.table.sqlname,
+                    " WHERE ",
+                    where,
+                    '"""',
+                )
             w.writeline("try_execute(cursor, stmt, values)")
+            w.writeline("row = cursor.fetchone()")
+            w.writeline("if row is None:")
+            with w.indented():
+                w.writeline(
+                    "raise DatabaseError('updated row did not return any data')"
+                )
+            for i, column in enumerate(self.table.columns):
+                w.writeline(
+                    "self._",
+                    column.pyname,
+                    " = ",
+                    column.val_from_sql(f"row[{i}]"),
+                )
         w.writeline()
 
     def generate_delete(self, w: Writer):

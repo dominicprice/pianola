@@ -7,3 +7,4 @@ from pianola.lib.schema.sql.column import Column
 class Index:
     name: str
     columns: list[Column]
+    unique: bool
