@@ -89,7 +89,7 @@ class TableGenerator:
         w.writeline(
             "from ",
             self.package_name,
-            ".utils import _UNSET, Cursor, DatabaseError, try_execute",
+            ".utils import _UNSET",
         )
         w.writeline(
             "from ",
@@ -112,9 +112,12 @@ class TableGenerator:
             "optional_decimal_to_sql, ",
             "optional_decimal_from_sql",
         )
-        w.writeline("from typing import Union, Optional, Any, Generator")
+        w.writeline("from typing import Union, Optional, Any, Generator, TYPE_CHECKING")
         w.writeline("from datetime import date, datetime, time")
         w.writeline("from decimal import Decimal")
+        w.writeline("if TYPE_CHECKING:")
+        with w.indented():
+            w.writeline("from _typeshed.dbapi import DBAPICursor")
         w.writeline()
 
     def generate_class_header(self, w: Writer):
@@ -179,7 +182,7 @@ class TableGenerator:
                     )
 
     def generate_insert(self, w: Writer):
-        w.writeline("def insert(self, cursor: Cursor):")
+        w.writeline("def insert(self, cursor: 'DBAPICursor'):")
         with w.indented():
             self.generate_set_cols(w, "cols", "values")
             w.writeline()
@@ -201,13 +204,11 @@ class TableGenerator:
                     ", ".join(c.sqlname for c in self.table.columns),
                     "'",
                 )
-            w.writeline("try_execute(cursor, stmt, values)")
+            w.writeline("cursor.execute(stmt, values)")
             w.writeline("row = cursor.fetchone()")
             w.writeline("if row is None:")
             with w.indented():
-                w.writeline(
-                    "raise DatabaseError('inserted row did not return any data')"
-                )
+                w.writeline("raise NoRowsError")
             for i, column in enumerate(self.table.columns):
                 w.writeline(
                     "self._",
@@ -222,7 +223,7 @@ class TableGenerator:
         if all(c.primary_key for c in self.table.columns):
             return
 
-        w.writeline("def update(self, cursor: Cursor):")
+        w.writeline("def update(self, cursor: 'DBAPICursor'):")
         with w.indented():
             self.generate_set_cols(w, "cols", "values", False)
             for column in self.table.columns:
@@ -265,13 +266,11 @@ class TableGenerator:
                     where,
                     '"""',
                 )
-            w.writeline("try_execute(cursor, stmt, values)")
+            w.writeline("cursor.execute(stmt, values)")
             w.writeline("row = cursor.fetchone()")
             w.writeline("if row is None:")
             with w.indented():
-                w.writeline(
-                    "raise DatabaseError('updated row did not return any data')"
-                )
+                w.writeline("raise NoRowsError")
             for i, column in enumerate(self.table.columns):
                 w.writeline(
                     "self._",
@@ -282,7 +281,7 @@ class TableGenerator:
         w.writeline()
 
     def generate_delete(self, w: Writer):
-        w.writeline("def delete(self, cursor: Cursor):")
+        w.writeline("def delete(self, cursor: 'DBAPICursor'):")
         with w.indented():
             pks = [f for f in self.table.columns if f.primary_key]
             w.writeline(
@@ -293,7 +292,7 @@ class TableGenerator:
                 "'",
             )
             w.writeline(
-                "try_execute(cursor, stmt, [",
+                "cursor.execute(stmt, [",
                 ", ".join(f"self._{f.pyname}" for f in pks),
                 "])",
             )

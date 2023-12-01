@@ -8,11 +8,11 @@ packages = [{include = "pianola", from = "src"}]
 
 [tool.poetry.dependencies]
 python = "^3.9"
-sqlglot = "^18.3.0"
 stringcase = "^1.2.0"
 inflect = "^7.0.0"
 whoosh = "^2.7.4"
 click = "^8.1.7"
+sqlglot = "^19.7.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.4.2"

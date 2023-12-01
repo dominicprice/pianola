@@ -50,7 +50,7 @@ def generate_query(w: Writer, target: Union[Table, View], query: Query):
     w.writeline(
         "def ",
         query.name,
-        "(cursor: Cursor, ",
+        "(cursor: 'DBAPICursor', ",
         ", ".join(f"{n}: {t}" for n, t in params),
         ") -> ",
         ret,
@@ -65,7 +65,7 @@ def generate_query(w: Writer, target: Union[Table, View], query: Query):
             fields += [f.pyname + " = " + f.val_from_sql(f"res[{i}]")]
         w.writeline("stmt = '''" + sql + "'''")
         w.writeline(
-            "try_execute(cursor, stmt, [",
+            "cursor.execute(stmt, [",
             ", ".join(p[0] for p in params),
             "])",
         )

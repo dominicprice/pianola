@@ -1,3 +1,4 @@
+from pprint import pprint
 from typing import Optional
 
 import sqlglot.expressions as exp
@@ -23,3 +24,13 @@ def resolve_reference(reference: exp.Reference, schema: SqlSchema) -> Column:
             assert isinstance(expr.this, str)
             return table.find_column(expr.this, expr.quoted)
     raise RuntimeError("could not resolve reference")
+
+
+def debug_expr(name: str, e: exp.Expression, indent: int = 0):
+    print("\t" * indent + name, ":", type(e))
+    # pprint(e.args, indent=1)
+    for (
+        n,
+        ee,
+    ) in e.iter_expressions():
+        debug_expr(n, ee, indent + 1)

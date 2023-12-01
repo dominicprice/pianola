@@ -3,6 +3,7 @@ from pathlib import Path
 from pianola.generate.sqlite.converters import generate_converters
 from pianola.generate.sqlite.table import generate_table
 from pianola.generate.sqlite.utils import generate_utils
+from pianola.generate.sqlite.view import generate_view
 from pianola.lib.schema.sql import SqlSchema
 from pianola.lib.stringutils import sql_to_class_name, sql_to_module_name
 from pianola.lib.writer import Writer
@@ -26,6 +27,12 @@ def generate(
         if table.sqlname not in exclude_tables:
             generate_table(table, outdir, package_name, [])
             generated_tables += [table.sqlname]
+
+    # generate views
+    for view in schema.views:
+        print("generating view", view)
+        generate_view(view, outdir, package_name)
+        generated_tables += [view.sqlname]
 
     # generate module level imports
     with Writer(outdir / "__init__.py") as w:
